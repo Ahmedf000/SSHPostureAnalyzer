@@ -6,7 +6,15 @@ from core.enumerate import enumerate_ssh
 import re
 
 def main():
-
+    print("""
+            __        ____ ____  _   _ 
+            \ \      / ___/ ___|| | | |
+             \ \     \___ \___ \| |_| |
+             / /      ___) |__) |  _  |     
+            /_/____  |____/____/|_| |_|
+             |_____|                  
+    """)
+    
     parser = argparse.ArgumentParser(description="SSH Downgrade Testing Tool")
     parser.add_argument("-i", "--ip", required=True)
     parser.add_argument("-s", "--sock", action="store_true",
@@ -92,7 +100,6 @@ def main():
     if args.enum:
         print("Enumerating SSH...")
         result["enumeration"] = enumerate_ssh(args.ip)
-
 
 
     if args.output:

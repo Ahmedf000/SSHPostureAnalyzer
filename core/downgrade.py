@@ -1,6 +1,5 @@
 import subprocess
 
-
 def downgrade_ssh(user, IP_ADDRESS, port=22,kex="diffie-hellman-group1-sha1",
                   hostkey="ssh-rsa",
                   pubkey="ssh-rsa",

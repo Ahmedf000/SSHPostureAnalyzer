@@ -1,13 +1,27 @@
 import paramiko
 
-
 def enumerate_ssh(ip, port=22):
     ssh_info = {
         "banner": None,
-        "kex": [],
-        "ciphers": {},
-        "host_key": None,
-        "auth_methods": []
+
+        "kex": {
+            "Kex": [],
+            "chosen": None
+        },
+
+        "ciphers": {
+            "supported": [],
+            "client-to-server": None,
+            "Server-to-client": None
+        },
+
+        "macs": {
+            "supported": [],
+            "client-to-server": None,
+            "Server-to-client": None
+        },
+
+        "host_key": None
     }
 
     transport = None
@@ -20,6 +34,7 @@ def enumerate_ssh(ip, port=22):
         security = transport.get_security_options()
         ssh_info["kex"] = list(security.kex)
         ssh_info["ciphers"] = list(security.ciphers)
+        ssh_info["MAC"] = list(security.MAC)
         ssh_info["host_key"] = transport.get_remote_server_key().get_name()
 
 
