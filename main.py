@@ -1,60 +1,30 @@
 import argparse
 import json
-import paramiko
-
-def collect_ssh_info(ip, port=22):
-
-    ssh_info = {
-        "banner",
-        "kex",
-        "ciphers",
-        "host_key",
-        "auth_methods",
-    }
-
-    transport = None
-    try:
-        print(f"[*] Starting SSH connection to {ip}:{port}...")
-        transport = paramiko.Transport((ip, port))
-        transport.start_client()
-        print(f"[*] SSH connection to {ip}:{port} established.")
-        ssh_info["banner"] = transport.remote_version
-        security = transport.get_security_options()
-        ssh_info["kex"] = security.kex
-        ssh_info["ciphers"] = {
-            "client_to_server": security.ciphers,
-            "server_to_client": security.ciphers
-        }
-        ssh_info["host_key"] = transport.get_remote_server_key().get_name()
-
-
-    except paramiko.ssh_exception.SSHException as e:
-        print(f"[!] SSH negotiation failed: {e}")
-        ssh_info["error"] = f"SSH negotiation failed: {e}"
-
-    except paramiko.ssh_exception.AuthenticationException:
-        print("[!] Authentication failed (pre-auth)")
-        ssh_info["error"] = "Authentication failed"
-
-    finally:
-        if transport:
-            transport.close()
-
-    return ssh_info
+from core.downgrade import downgrade_ssh
+from core.banner import grab_banner
+from core.enumerate import enumerate_ssh
 
 def main():
     results = []
 
-    args = argparse.ArgumentParser()
-    args.add_argument("-i", "--ip", required=True, help="ip address for the SSH conenction")
-    args.add_argument("-o", "--output",  help="output file to save the SSH banner to json file reports_and_analysis.json")
-    arg = args.parse_args()
+    parser = argparse.ArgumentParser(description="SSH Downgrade Testing Tool")
+    parser.add_argument("-i", "--ip", required=True)
+    parser.add_argument("-u", "--user", default="root")
+    parser.add_argument("--enum", action="store_true")
+    parser.add_argument("--downgrade", action="store_true")
+    parser.add_argument("-o", "--output")
 
-    IP = arg.ip
+    args = parser.parse_args()
 
+    result = {}
 
-    host_results = collect_ssh_info(IP)
-    results.append(host_results)
+    if args.enum:
+        print("Enumerating SSL...")
+        results["enumeration"] = enumerate_ssh(args.ip)
+
+    if args.downgrade:
+        print("Attempting downgrade....")
+        results["downgrade"] = downgrade_ssh(args.user, args.ip)
 
     if args.output:
         try:
