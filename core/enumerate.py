@@ -74,17 +74,14 @@ def enumerate_ssh(ip, port=22, timeout=10):
 
     transport = None
     start_time = None
-
     try:
         import time
         start_time = time.time()
 
         print(f"Starting SSH connection to {ip}:{port}...")
-
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(timeout)
         s.connect((ip, port))
-
         transport = paramiko.Transport(s)
         security_options = transport.get_security_options()
 
@@ -97,19 +94,19 @@ def enumerate_ssh(ip, port=22, timeout=10):
         ssh_info["compression"]["client_offered"] = list(security_options.compression)
 
 
+
         print("Starting SSH connection...")
         transport.start_client(timeout=timeout)
-
         if start_time:
             start_up_timing = ( time.time() - start_time ) * 1000 #note: turn to ms
             ssh_info["connection_info"]["connection_time_ms"] = round(start_up_timing)
-
         print("SSH connection established")
         ssh_info["connection_info"]["status"] = "success"
 
+
+
         raw_banner = transport.remote_version
         ssh_info["banner"]["raw"] = raw_banner
-
         if raw_banner:
             """
                 banners initially conclude 
@@ -121,16 +118,13 @@ def enumerate_ssh(ip, port=22, timeout=10):
             if len(banner_parts) == 2:
                 if not banner_parts[0].startswith("SSH"):
                     return "Non supported banner, SSH not existing"
-
                 if banner_parts[0].startswith("SSH"):
                     ssh_info["banner"]["protocol_version"] = banner_parts[1]
                     split_software_comment = banner_parts[2].split(" ")
                     ssh_info["banner"]["software"] = split_software_comment[0]
-
             else:
                 if not banner_parts[0].startswith("SSH"):
                     return "Non supported banner, SSH not existing"
-
                 ssh_info["banner"]["software"] = banner_parts[1]
                 software_comment = banner_parts[2].split(" ",1)
                 ssh_info["banner"]["software"] = software_comment[0]
@@ -138,17 +132,19 @@ def enumerate_ssh(ip, port=22, timeout=10):
                     ssh_info["banner"]["comment"] = software_comment[1]
 
 
+
+
         #moving to the algorithm information
-
         security_features = transport.get_security_options()
-
         ssh_info["kex_exchange"]["server_offered"] = list(security_features.kex)
         ssh_info["encryption"]["server_offered"] = list(security_features.ciphers)
         ssh_info["mac"]["server_offered"] = list(security_features.digests)
         ssh_info["compression"]["server_offered"] = list(security_features.compression)
 
-         #negotiated algo
 
+
+
+        #negotiated algo
         try:
             if hasattr(transport, 'kex_engine') and transport.kex_engine:
                 ssh_info["key_exchange"]["negotiated"] = transport.kex_engine.name
@@ -170,6 +166,32 @@ def enumerate_ssh(ip, port=22, timeout=10):
 
         except AttributeError as e:
             print(f"WARNING: Could not access negotiated algorithms: {e}")
+
+
+
+        #host key information
+        try:
+            host_key = transport.get_remote_server_key()
+            ssh_info["host_key"]["algorithm"] = host_key.get_name()
+
+            key_type = type(host_key).__name__
+            ssh_info["host_key"]["key_type"] = key_type
+
+            if hasattr(transport, 'get_bits'):
+                ssh_info["host_key"]["bits"] = host_key.get_bits()
+            elif hasattr(transport, 'size'):
+                ssh_info["host_key"]["bits"] = host_key.get_bits()
+
+
+            import hashlib
+            import base64
+
+            key_strings = host_key.asbytes()
+
+            md5_hash = hashlib.md5(key_strings).hexdigest()
+            md5_fingerprint = ':'.join(md5_hash[i:i+2]) for i in range(0, len(md5_hash), 2)
+            ssh_info["host_key"]["fingerprint_md5"] = md5_fingerprint
+
 
 
 
