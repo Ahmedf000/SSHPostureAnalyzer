@@ -1,24 +1,27 @@
 import paramiko
 import socket
 
+
 def enumerate_ssh(ip, port=22, timeout=10):
     ssh_info = {
         "target": {
             "ip": ip,
             "port": port
         },
+
         "banner": {
-          "raw": None,
-          "protocol_version": None,
+            "raw": None,
+            "protocol_version": None,
             "software": None,
             "comments": None
         },
 
-        "kex_exchange": {
+        "key_exchange": {
             "server_offered": [],
             "client_offered": [],
             "negotiated": None,
-            "vulnerable_algorithms": []
+            "vulnerable_algorithms": [],
+            "detailed_analysis": []
         },
 
         "encryption": {
@@ -26,15 +29,17 @@ def enumerate_ssh(ip, port=22, timeout=10):
             "client_offered": [],
             "client_to_server": None,
             "server_to_client": None,
-            "vulnerable_algorithms": []
+            "vulnerable_algorithms": [],
+            "detailed_analysis": []
         },
 
         "mac": {
             "server_offered": [],
             "client_offered": [],
-            "client-to-server": None,
-            "Server-to-client": None,
+            "client_to_server": None,
+            "server_to_client": None,
             "vulnerable_algorithms": [],
+            "detailed_analysis": [],
             "note": None
         },
 
@@ -43,11 +48,10 @@ def enumerate_ssh(ip, port=22, timeout=10):
             "key_type": None,
             "bits": None,
             "fingerprint_md5": None,
-            "fingerprint_sha256": None
+            "fingerprint_sha256": None,
+            "detailed_analysis": None
         },
 
-        #compression shrinks the data BEFORE encrypting it - cus encrypted data cannot be compressed
-        #better for bandwith usage
         "compression": {
             "server_offered": [],
             "client_offered": [],
@@ -57,9 +61,9 @@ def enumerate_ssh(ip, port=22, timeout=10):
 
         "security_assessment": {
             "overall_risk": None,
-            "downgrade_possibility": None,
+            "downgrade_possible": False,
             "weak_algorithms_count": 0,
-            "recommendation": []
+            "recommendations": []
         },
 
         "connection_info": {
@@ -67,7 +71,6 @@ def enumerate_ssh(ip, port=22, timeout=10):
             "error": None,
             "connection_time_ms": None
         }
-
     }
 
     transport = None
@@ -83,71 +86,37 @@ def enumerate_ssh(ip, port=22, timeout=10):
         transport = paramiko.Transport(s)
         security_options = transport.get_security_options()
 
-
-
-
-        #client default capabilities
         ssh_info["key_exchange"]["client_offered"] = list(security_options.kex)
         ssh_info["encryption"]["client_offered"] = list(security_options.ciphers)
         ssh_info["mac"]["client_offered"] = list(security_options.digests)
         ssh_info["compression"]["client_offered"] = list(security_options.compression)
 
-
-
-
-        print("Starting SSH connection...")
+        print("Starting SSH handshake...")
         transport.start_client(timeout=timeout)
         if start_time:
-            start_up_timing = ( time.time() - start_time ) * 1000 #note: turn to ms
-            ssh_info["connection_info"]["connection_time_ms"] = round(start_up_timing)
+            connection_time = (time.time() - start_time) * 1000
+            ssh_info["connection_info"]["connection_time_ms"] = round(connection_time, 2)
         print("SSH connection established")
         ssh_info["connection_info"]["status"] = "success"
-
-
-
 
         raw_banner = transport.remote_version
         ssh_info["banner"]["raw"] = raw_banner
         if raw_banner:
-            """
-                banners initially conclude 
-                    1-protocol
-                    2-version
-                    3-software & comments
-            """
-            banner_parts = raw_banner.split("-",2)
-            if len(banner_parts) == 2:
-                if not banner_parts[0].startswith("SSH"):
-                    return "Non supported banner, SSH not existing"
-                if banner_parts[0].startswith("SSH"):
-                    ssh_info["banner"]["protocol_version"] = banner_parts[1]
-                    split_software_comment = banner_parts[2].split(" ")
-                    ssh_info["banner"]["software"] = split_software_comment[0]
-            else:
-                if not banner_parts[0].startswith("SSH"):
-                    return "Non supported banner, SSH not existing"
-                ssh_info["banner"]["software"] = banner_parts[1]
-                software_comment = banner_parts[2].split(" ",1)
-                ssh_info["banner"]["software"] = software_comment[0]
-                if len(software_comment) > 1:
-                    ssh_info["banner"]["comment"] = software_comment[1]
+            banner_parts = raw_banner.split("-", 2)
+            if len(banner_parts) >= 2:
+                ssh_info["banner"]["protocol_version"] = banner_parts[1]
+            if len(banner_parts) >= 3:
+                software_and_comments = banner_parts[2].split(" ", 1)
+                ssh_info["banner"]["software"] = software_and_comments[0]
+                if len(software_and_comments) > 1:
+                    ssh_info["banner"]["comments"] = software_and_comments[1]
 
+        security = transport.get_security_options()
+        ssh_info["key_exchange"]["server_offered"] = list(security.kex)
+        ssh_info["encryption"]["server_offered"] = list(security.ciphers)
+        ssh_info["mac"]["server_offered"] = list(security.digests)
+        ssh_info["compression"]["server_offered"] = list(security.compression)
 
-
-
-
-        #moving to the algorithm information
-        security_features = transport.get_security_options()
-        ssh_info["kex_exchange"]["server_offered"] = list(security_features.kex)
-        ssh_info["encryption"]["server_offered"] = list(security_features.ciphers)
-        ssh_info["mac"]["server_offered"] = list(security_features.digests)
-        ssh_info["compression"]["server_offered"] = list(security_features.compression)
-
-
-
-
-
-        #negotiated algo
         try:
             if hasattr(transport, 'kex_engine') and transport.kex_engine:
                 ssh_info["key_exchange"]["negotiated"] = transport.kex_engine.name
@@ -160,7 +129,7 @@ def enumerate_ssh(ip, port=22, timeout=10):
             if hasattr(transport, 'local_mac'):
                 ssh_info["mac"]["client_to_server"] = transport.local_mac
             if hasattr(transport, 'remote_mac'):
-                ssh_info["mac"]["server_to_client"] = transport.remote_version
+                ssh_info["mac"]["server_to_client"] = transport.remote_mac
 
             if hasattr(transport, 'local_compression'):
                 ssh_info["compression"]["client_to_server"] = transport.local_compression
@@ -170,11 +139,6 @@ def enumerate_ssh(ip, port=22, timeout=10):
         except AttributeError as e:
             print(f"WARNING: Could not access negotiated algorithms: {e}")
 
-
-
-
-
-        #host key information
         try:
             host_key = transport.get_remote_server_key()
             ssh_info["host_key"]["algorithm"] = host_key.get_name()
@@ -182,45 +146,41 @@ def enumerate_ssh(ip, port=22, timeout=10):
             key_type = type(host_key).__name__
             ssh_info["host_key"]["key_type"] = key_type
 
-            if hasattr(transport, 'get_bits'):
+            if hasattr(host_key, 'get_bits'):
                 ssh_info["host_key"]["bits"] = host_key.get_bits()
-            elif hasattr(transport, 'size'):
-                ssh_info["host_key"]["bits"] = host_key.get_bits()
+            elif hasattr(host_key, 'size'):
+                ssh_info["host_key"]["bits"] = host_key.size
 
             import hashlib
             import base64
 
-            key_strings = host_key.asbytes()
-            md5_hash = hashlib.md5(key_strings).hexdigest()
-            md5_fingerprint = ":".join(
-                md5_hash[i:i+2] for i in range(0, len(md5_hash), 2)
-            )
+            key_bytes = host_key.asbytes()
+            md5_hash = hashlib.md5(key_bytes).hexdigest()
+            md5_fingerprint = ":".join(md5_hash[i:i + 2] for i in range(0, len(md5_hash), 2))
             ssh_info["host_key"]["fingerprint_md5"] = md5_fingerprint
-            sha256_hash = hashlib.sha256(key_strings).hexdigest()
+
+            sha256_hash = hashlib.sha256(key_bytes).digest()
             sha256_fingerprint = base64.b64encode(sha256_hash).decode('ascii').rstrip('=')
-            ssh_info["host_key"]["fingerprint_sha256"] = sha256_fingerprint
+            ssh_info["host_key"]["fingerprint_sha256"] = f"SHA256:{sha256_fingerprint}"
 
         except Exception as e:
             print(f"Warning: Could not extract host key info: {e}")
 
-
-
-
         ssh_info = assess_security(ssh_info)
-        AEAD_CIPHERS =['chacha20-poly1305@openssh.com','aes128-gcm@openssh.com','aes256-gcm@openssh.com']
+        AEAD_CIPHERS = ['chacha20-poly1305@openssh.com', 'aes128-gcm@openssh.com', 'aes256-gcm@openssh.com']
         if (ssh_info["encryption"]["client_to_server"] in AEAD_CIPHERS or
-            ssh_info["encryption"]["server_to_client"] in AEAD_CIPHERS):
+                ssh_info["encryption"]["server_to_client"] in AEAD_CIPHERS):
             ssh_info["mac"]["note"] = "AEAD cipher in use - MAC is integrated"
 
 
 
 
-    except socket.timeout as e:
-        ssh_info["connection_info"]["status"] = "Filed"
-        ssh_info["connection_info"]["error"] = "Connection timed out"
-        print(f"Connection timeout after {timeout} seconds: {e}")
+    except socket.timeout:
+        ssh_info["connection_info"]["status"] = "failed"
+        ssh_info["connection_info"]["error"] = "Connection timeout"
+        print(f"Connection timeout after {timeout} seconds")
     except socket.error as e:
-        ssh_info["connection_info"]["status"] = "Failed"
+        ssh_info["connection_info"]["status"] = "failed"
         ssh_info["connection_info"]["error"] = f"Socket error: {str(e)}"
         print(f"Socket error: {e}")
     except paramiko.SSHException as e:
@@ -235,20 +195,17 @@ def enumerate_ssh(ip, port=22, timeout=10):
     finally:
         if transport:
             transport.close()
-            print("Closing connection.")
+            print("Connection closed")
     return ssh_info
 
 
-
-
 def assess_security(ssh_info):
-
-    weak_hex = [
+    weak_kex = [
         'diffie-hellman-group1-sha1',
         'diffie-hellman-group14-sha1',
         'diffie-hellman-group-exchange-sha1',
-        'rsa1024-sha1',]
-
+        'rsa1024-sha1',
+    ]
     weak_ciphers = [
         '3des-cbc',
         'aes128-cbc',
@@ -261,7 +218,6 @@ def assess_security(ssh_info):
         'cast128-cbc',
         'idea-cbc'
     ]
-
     weak_macs = [
         'hmac-md5',
         'hmac-md5-96',
@@ -269,103 +225,99 @@ def assess_security(ssh_info):
         'hmac-ripemd160',
         'hmac-sha1',
     ]
-
     weak_host_keys = [
         'ssh-dss',
         'ssh-rsa',
     ]
 
+    for kex_algo in ssh_info["key_exchange"]["server_offered"]:
+        classification = classify_algorithm(kex_algo, "kex")
+        ssh_info["key_exchange"]["detailed_analysis"].append(classification)
 
+    for cipher_algo in ssh_info["encryption"]["server_offered"]:
+        classification = classify_algorithm(cipher_algo, "cipher")
+        ssh_info["encryption"]["detailed_analysis"].append(classification)
 
+    for mac_algo in ssh_info["mac"]["server_offered"]:
+        classification = classify_algorithm(mac_algo, "mac")
+        ssh_info["mac"]["detailed_analysis"].append(classification)
 
-    vulnerable_kex = []
-    for kex in ssh_info["key_exchange"]["server_offered"]:
-        if kex in weak_hex:
-            vulnerable_kex.append(kex)
+    if ssh_info["host_key"]["algorithm"]:
+        ssh_info["host_key"]["detailed_analysis"] = classify_algorithm(
+            ssh_info["host_key"]["algorithm"],
+            "host_key"
+        )
 
-    vulnerable_ciphers = []
-    for cipher in ssh_info["encryption"]["server_offered"]:
-        if cipher in weak_ciphers:
-            vulnerable_ciphers.append(cipher)
-
-    vulnerable_macs = []
-    for mac in ssh_info["mac"]["server_offered"]:
-        if mac in weak_macs:
-            vulnerable_macs.append(mac)
+    vulnerable_kex = [
+        algo["name"]
+        for algo in ssh_info["key_exchange"]["detailed_analysis"]
+        if algo["status"] in ["vulnerable", "weak"]
+    ]
+    vulnerable_ciphers = [
+        algo["name"]
+        for algo in ssh_info["encryption"]["detailed_analysis"]
+        if algo["status"] in ["vulnerable", "weak"]
+    ]
+    vulnerable_macs = [
+        algo["name"]
+        for algo in ssh_info["mac"]["detailed_analysis"]
+        if algo["status"] in ["vulnerable", "weak"]
+    ]
 
     ssh_info["key_exchange"]["vulnerable_algorithms"] = vulnerable_kex
     ssh_info["encryption"]["vulnerable_algorithms"] = vulnerable_ciphers
     ssh_info["mac"]["vulnerable_algorithms"] = vulnerable_macs
 
+    weak_count = len(vulnerable_kex) + len(vulnerable_ciphers) + len(vulnerable_macs)
+    ssh_info["security_assessment"]["weak_algorithms_count"] = weak_count
+    if weak_count > 0:
+        ssh_info["security_assessment"]["downgrade_possible"] = True
 
-
-
-    weak_algo_count = len(vulnerable_kex) + len(vulnerable_ciphers) + len(vulnerable_macs)
-    ssh_info["security_assessment"]["weak_algorithms_count"] = weak_algo_count
-    if weak_algo_count:
-        ssh_info["security_assessment"]["downgrade_possibility"] = True
-
-
-
-
-    protocol_version = ssh_info["encryption"]["protocol_version"]
-    if protocol_version == '1.99':
-        ssh_info["security_assessment"]["downgrade_possibility"] = True
+    protocol_version = ssh_info["banner"]["protocol_version"]
+    if protocol_version == "1.99":
+        ssh_info["security_assessment"]["downgrade_possible"] = True
         ssh_info["security_assessment"]["recommendations"].append(
             "Protocol version 1.99 detected - supports both SSH-1 and SSH-2 (downgrade risk)"
         )
-    elif protocol_version == "1.":
-        ssh_info["security_assessment"]["downgrade_possibility"] = True
+    elif protocol_version and protocol_version.startswith("1."):
+        ssh_info["security_assessment"]["downgrade_possible"] = True
         ssh_info["security_assessment"]["recommendations"].append(
             "SSH-1 protocol detected - fundamentally insecure, upgrade to SSH-2 immediately"
         )
 
-
-
-
-    host_key_algo = ssh_info["host_key"]["algorithm"]
-    if host_key_algo in weak_host_keys:
-        ssh_info["security_assessment"]["recommendations"].append(
-            f"Weak host key algorithm detected: {host_key_algo} - consider upgrading"
-        )
-
-
-
+    if ssh_info["host_key"].get("detailed_analysis"):
+        host_analysis = ssh_info["host_key"]["detailed_analysis"]
+        if host_analysis["status"] in ["vulnerable", "weak"]:
+            ssh_info["security_assessment"]["recommendations"].append(
+                f"Weak host key: {host_analysis['recommendation']}"
+            )
 
     if vulnerable_kex:
         ssh_info["security_assessment"]["recommendations"].append(
             f"Disable weak KEX algorithms: {', '.join(vulnerable_kex)}"
         )
-
     if vulnerable_ciphers:
         ssh_info["security_assessment"]["recommendations"].append(
             f"Disable weak ciphers: {', '.join(vulnerable_ciphers)}"
         )
-
     if vulnerable_macs:
         ssh_info["security_assessment"]["recommendations"].append(
             f"Disable weak MACs: {', '.join(vulnerable_macs)}"
         )
 
-
-
-
-    if weak_algo_count == 0 and protocol_version == '2.0':
+    if weak_count == 0 and protocol_version == "2.0":
         ssh_info["security_assessment"]["overall_risk"] = "LOW"
-    elif weak_algo_count <= 3:
+    elif weak_count <= 3:
         ssh_info["security_assessment"]["overall_risk"] = "MEDIUM"
-    elif weak_algo_count <= 6:
+    elif weak_count <= 6:
         ssh_info["security_assessment"]["overall_risk"] = "HIGH"
     else:
         ssh_info["security_assessment"]["overall_risk"] = "CRITICAL"
-
-
 
     return ssh_info
 
 
 def classify_algorithm(algorithm_name, category):
-
     classification = {
         "name": algorithm_name,
         "category": category,
@@ -375,8 +327,6 @@ def classify_algorithm(algorithm_name, category):
         "cve_references": [],
         "recommendation": ""
     }
-
-
 
     if category == "kex":
         if algorithm_name in ['diffie-hellman-group1-sha1']:
