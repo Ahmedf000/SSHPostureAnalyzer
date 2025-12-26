@@ -58,7 +58,7 @@ def enumerate_ssh(ip, port=22, timeout=10):
         "security_assessment": {
             "overall_risk": None,
             "downgrade_possibility": None,
-            "weak_algorithm_count": 0,
+            "weak_algorithms_count": 0,
             "recommendation": []
         },
 
@@ -69,8 +69,6 @@ def enumerate_ssh(ip, port=22, timeout=10):
         }
 
     }
-
-
 
     transport = None
     start_time = None
@@ -87,11 +85,13 @@ def enumerate_ssh(ip, port=22, timeout=10):
 
 
 
+
         #client default capabilities
         ssh_info["key_exchange"]["client_offered"] = list(security_options.kex)
         ssh_info["encryption"]["client_offered"] = list(security_options.ciphers)
         ssh_info["mac"]["client_offered"] = list(security_options.digests)
         ssh_info["compression"]["client_offered"] = list(security_options.compression)
+
 
 
 
@@ -102,6 +102,7 @@ def enumerate_ssh(ip, port=22, timeout=10):
             ssh_info["connection_info"]["connection_time_ms"] = round(start_up_timing)
         print("SSH connection established")
         ssh_info["connection_info"]["status"] = "success"
+
 
 
 
@@ -134,12 +135,14 @@ def enumerate_ssh(ip, port=22, timeout=10):
 
 
 
+
         #moving to the algorithm information
         security_features = transport.get_security_options()
         ssh_info["kex_exchange"]["server_offered"] = list(security_features.kex)
         ssh_info["encryption"]["server_offered"] = list(security_features.ciphers)
         ssh_info["mac"]["server_offered"] = list(security_features.digests)
         ssh_info["compression"]["server_offered"] = list(security_features.compression)
+
 
 
 
@@ -169,6 +172,8 @@ def enumerate_ssh(ip, port=22, timeout=10):
 
 
 
+
+
         #host key information
         try:
             host_key = transport.get_remote_server_key()
@@ -182,33 +187,320 @@ def enumerate_ssh(ip, port=22, timeout=10):
             elif hasattr(transport, 'size'):
                 ssh_info["host_key"]["bits"] = host_key.get_bits()
 
-
             import hashlib
             import base64
 
             key_strings = host_key.asbytes()
-
             md5_hash = hashlib.md5(key_strings).hexdigest()
-            md5_fingerprint = ':'.join(md5_hash[i:i+2]) for i in range(0, len(md5_hash), 2)
+            md5_fingerprint = ":".join(
+                md5_hash[i:i+2] for i in range(0, len(md5_hash), 2)
+            )
             ssh_info["host_key"]["fingerprint_md5"] = md5_fingerprint
+            sha256_hash = hashlib.sha256(key_strings).hexdigest()
+            sha256_fingerprint = base64.b64encode(sha256_hash).decode('ascii').rstrip('=')
+            ssh_info["host_key"]["fingerprint_sha256"] = sha256_fingerprint
+
+        except Exception as e:
+            print(f"Warning: Could not extract host key info: {e}")
 
 
 
 
+        ssh_info = assess_security(ssh_info)
+        AEAD_CIPHERS =['chacha20-poly1305@openssh.com','aes128-gcm@openssh.com','aes256-gcm@openssh.com']
+        if (ssh_info["encryption"]["client_to_server"] in AEAD_CIPHERS or
+            ssh_info["encryption"]["server_to_client"] in AEAD_CIPHERS):
+            ssh_info["mac"]["note"] = "AEAD cipher in use - MAC is integrated"
 
 
 
-    except paramiko.ssh_exception.SSHException as e:
+
+    except socket.timeout as e:
+        ssh_info["connection_info"]["status"] = "Filed"
+        ssh_info["connection_info"]["error"] = "Connection timed out"
+        print(f"Connection timeout after {timeout} seconds: {e}")
+    except socket.error as e:
+        ssh_info["connection_info"]["status"] = "Failed"
+        ssh_info["connection_info"]["error"] = f"Socket error: {str(e)}"
+        print(f"Socket error: {e}")
+    except paramiko.SSHException as e:
+        ssh_info["connection_info"]["status"] = "failed"
+        ssh_info["connection_info"]["error"] = f"SSH error: {str(e)}"
         print(f"SSH negotiation failed: {e}")
-        ssh_info["error"] = f"SSH negotiation failed: {e}"
-
-    except paramiko.ssh_exception.AuthenticationException:
-        print("Authentication failed (pre-auth)")
-        ssh_info["error"] = "Authentication failed"
+    except Exception as e:
+        ssh_info["connection_info"]["status"] = "failed"
+        ssh_info["connection_info"]["error"] = f"Unexpected error: {str(e)}"
+        print(f"Unexpected error: {e}")
 
     finally:
         if transport:
             transport.close()
+            print("Closing connection.")
+    return ssh_info
+
+
+
+
+def assess_security(ssh_info):
+
+    weak_hex = [
+        'diffie-hellman-group1-sha1',
+        'diffie-hellman-group14-sha1',
+        'diffie-hellman-group-exchange-sha1',
+        'rsa1024-sha1',]
+
+    weak_ciphers = [
+        '3des-cbc',
+        'aes128-cbc',
+        'aes192-cbc',
+        'aes256-cbc',
+        'arcfour',
+        'arcfour128',
+        'arcfour256',
+        'blowfish-cbc',
+        'cast128-cbc',
+        'idea-cbc'
+    ]
+
+    weak_macs = [
+        'hmac-md5',
+        'hmac-md5-96',
+        'hmac-sha1-96',
+        'hmac-ripemd160',
+        'hmac-sha1',
+    ]
+
+    weak_host_keys = [
+        'ssh-dss',
+        'ssh-rsa',
+    ]
+
+
+
+
+    vulnerable_kex = []
+    for kex in ssh_info["key_exchange"]["server_offered"]:
+        if kex in weak_hex:
+            vulnerable_kex.append(kex)
+
+    vulnerable_ciphers = []
+    for cipher in ssh_info["encryption"]["server_offered"]:
+        if cipher in weak_ciphers:
+            vulnerable_ciphers.append(cipher)
+
+    vulnerable_macs = []
+    for mac in ssh_info["mac"]["server_offered"]:
+        if mac in weak_macs:
+            vulnerable_macs.append(mac)
+
+    ssh_info["key_exchange"]["vulnerable_algorithms"] = vulnerable_kex
+    ssh_info["encryption"]["vulnerable_algorithms"] = vulnerable_ciphers
+    ssh_info["mac"]["vulnerable_algorithms"] = vulnerable_macs
+
+
+
+
+    weak_algo_count = len(vulnerable_kex) + len(vulnerable_ciphers) + len(vulnerable_macs)
+    ssh_info["security_assessment"]["weak_algorithms_count"] = weak_algo_count
+    if weak_algo_count:
+        ssh_info["security_assessment"]["downgrade_possibility"] = True
+
+
+
+
+    protocol_version = ssh_info["encryption"]["protocol_version"]
+    if protocol_version == '1.99':
+        ssh_info["security_assessment"]["downgrade_possibility"] = True
+        ssh_info["security_assessment"]["recommendations"].append(
+            "Protocol version 1.99 detected - supports both SSH-1 and SSH-2 (downgrade risk)"
+        )
+    elif protocol_version == "1.":
+        ssh_info["security_assessment"]["downgrade_possibility"] = True
+        ssh_info["security_assessment"]["recommendations"].append(
+            "SSH-1 protocol detected - fundamentally insecure, upgrade to SSH-2 immediately"
+        )
+
+
+
+
+    host_key_algo = ssh_info["host_key"]["algorithm"]
+    if host_key_algo in weak_host_keys:
+        ssh_info["security_assessment"]["recommendations"].append(
+            f"Weak host key algorithm detected: {host_key_algo} - consider upgrading"
+        )
+
+
+
+
+    if vulnerable_kex:
+        ssh_info["security_assessment"]["recommendations"].append(
+            f"Disable weak KEX algorithms: {', '.join(vulnerable_kex)}"
+        )
+
+    if vulnerable_ciphers:
+        ssh_info["security_assessment"]["recommendations"].append(
+            f"Disable weak ciphers: {', '.join(vulnerable_ciphers)}"
+        )
+
+    if vulnerable_macs:
+        ssh_info["security_assessment"]["recommendations"].append(
+            f"Disable weak MACs: {', '.join(vulnerable_macs)}"
+        )
+
+
+
+
+    if weak_algo_count == 0 and protocol_version == '2.0':
+        ssh_info["security_assessment"]["overall_risk"] = "LOW"
+    elif weak_algo_count <= 3:
+        ssh_info["security_assessment"]["overall_risk"] = "MEDIUM"
+    elif weak_algo_count <= 6:
+        ssh_info["security_assessment"]["overall_risk"] = "HIGH"
+    else:
+        ssh_info["security_assessment"]["overall_risk"] = "CRITICAL"
+
+
 
     return ssh_info
 
+
+def classify_algorithm(algorithm_name, category):
+
+    classification = {
+        "name": algorithm_name,
+        "category": category,
+        "status": "unknown",
+        "risk_level": "unknown",
+        "reason": "",
+        "cve_references": [],
+        "recommendation": ""
+    }
+
+
+
+    if category == "kex":
+        if algorithm_name in ['diffie-hellman-group1-sha1']:
+            classification["status"] = "vulnerable"
+            classification["risk_level"] = "critical"
+            classification["reason"] = "1024-bit group vulnerable to Logjam attack, uses SHA-1"
+            classification["cve_references"] = ["CVE-2015-4000"]
+            classification["recommendation"] = "Replace with curve25519-sha256 or ecdh-sha2-nistp256"
+
+        elif algorithm_name in ['diffie-hellman-group14-sha1', 'diffie-hellman-group-exchange-sha1']:
+            classification["status"] = "weak"
+            classification["risk_level"] = "high"
+            classification["reason"] = "Uses SHA-1 which has known collision attacks"
+            classification["recommendation"] = "Upgrade to SHA-256 variant"
+
+        elif algorithm_name in ['curve25519-sha256', 'curve25519-sha256@libssh.org']:
+            classification["status"] = "secure"
+            classification["risk_level"] = "low"
+            classification["reason"] = "Modern elliptic curve, excellent performance and security"
+
+        elif algorithm_name.startswith('ecdh-sha2-'):
+            classification["status"] = "secure"
+            classification["risk_level"] = "low"
+            classification["reason"] = "NIST elliptic curve with SHA-2"
+
+
+
+
+
+
+    elif category == "cipher":
+        if algorithm_name in ['3des-cbc', 'blowfish-cbc']:
+            classification["status"] = "vulnerable"
+            classification["risk_level"] = "high"
+            classification["reason"] = "64-bit block size vulnerable to Sweet32 attack"
+            classification["cve_references"] = ["CVE-2016-2183"]
+            classification["recommendation"] = "Replace with aes256-gcm or chacha20-poly1305"
+
+        elif algorithm_name.startswith('arcfour'):
+            classification["status"] = "vulnerable"
+            classification["risk_level"] = "critical"
+            classification["reason"] = "RC4 stream cipher is completely broken"
+            classification["recommendation"] = "Disable immediately"
+
+        elif 'cbc' in algorithm_name:
+            classification["status"] = "weak"
+            classification["risk_level"] = "medium"
+            classification["reason"] = "CBC mode vulnerable to padding oracle attacks"
+            classification["recommendation"] = "Use CTR or GCM mode instead"
+
+        elif algorithm_name in ['chacha20-poly1305@openssh.com']:
+            classification["status"] = "secure"
+            classification["risk_level"] = "low"
+            classification["reason"] = "Modern AEAD cipher, excellent performance"
+
+        elif 'gcm' in algorithm_name:
+            classification["status"] = "secure"
+            classification["risk_level"] = "low"
+            classification["reason"] = "AEAD mode provides encryption and authentication"
+
+        elif 'ctr' in algorithm_name:
+            classification["status"] = "secure"
+            classification["risk_level"] = "low"
+            classification["reason"] = "Counter mode is secure (but consider AEAD for authentication)"
+
+
+
+
+
+
+    elif category == "mac":
+        if 'md5' in algorithm_name:
+            classification["status"] = "vulnerable"
+            classification["risk_level"] = "critical"
+            classification["reason"] = "MD5 has practical collision attacks"
+            classification["recommendation"] = "Replace with hmac-sha2-256 or hmac-sha2-512"
+
+        elif algorithm_name.endswith('-96'):
+            classification["status"] = "weak"
+            classification["risk_level"] = "medium"
+            classification["reason"] = "Truncated MAC reduces security margin"
+            classification["recommendation"] = "Use full-length MAC variant"
+
+        elif 'sha1' in algorithm_name and 'sha2' not in algorithm_name:
+            classification["status"] = "weak"
+            classification["risk_level"] = "medium"
+            classification["reason"] = "SHA-1 has known collision attacks"
+            classification["recommendation"] = "Upgrade to hmac-sha2-256"
+
+        elif 'sha2' in algorithm_name:
+            if 'etm' in algorithm_name:
+                classification["status"] = "secure"
+                classification["risk_level"] = "low"
+                classification["reason"] = "SHA-2 with Encrypt-then-MAC (best practice)"
+            else:
+                classification["status"] = "secure"
+                classification["risk_level"] = "low"
+                classification["reason"] = "SHA-2 is currently secure"
+
+
+
+
+
+    elif category == "host_key":
+        if algorithm_name == 'ssh-dss':
+            classification["status"] = "vulnerable"
+            classification["risk_level"] = "critical"
+            classification["reason"] = "DSA is cryptographically broken"
+            classification["recommendation"] = "Replace with ed25519 or rsa (4096-bit)"
+
+        elif algorithm_name == 'ssh-rsa':
+            classification["status"] = "weak"
+            classification["risk_level"] = "medium"
+            classification["reason"] = "RSA with SHA-1 signatures being phased out"
+            classification["recommendation"] = "Prefer ed25519 or rsa-sha2-256/512"
+
+        elif algorithm_name.startswith('ssh-ed25519'):
+            classification["status"] = "secure"
+            classification["risk_level"] = "low"
+            classification["reason"] = "Modern Edwards curve, excellent security"
+
+        elif algorithm_name.startswith('rsa-sha2-'):
+            classification["status"] = "secure"
+            classification["risk_level"] = "low"
+            classification["reason"] = "RSA with SHA-2 signatures"
+
+    return classification

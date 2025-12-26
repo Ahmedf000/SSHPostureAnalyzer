@@ -1,0 +1,51 @@
+CRYPTOGRAPHY
+│
+├── Key Exchange
+│   │
+│   ├── Diffie-Hellman (DH)
+│   │   └── Agrees on a shared secret over an insecure network
+│   │
+│   └── Elliptic-Curve DH (ECDH)
+│       └── Faster, modern variant of Diffie-Hellman
+│
+├── Encryption (Confidentiality)
+│   │
+│   ├── Symmetric Encryption
+│   │   │
+│   │   ├── AES
+│   │   │   └── Encrypts bulk data using a shared secret key
+│   │   │
+│   │   └── ChaCha20
+│   │       └── Stream cipher optimized for software performance
+│   │
+│   └── Asymmetric Encryption
+│       │
+│       └── RSA
+│           └── Encrypts small data or keys using public/private keys
+│
+├── Hashing (Integrity)
+│   │
+│   ├── MD5
+│   │   └── Fast, legacy hash used for fingerprints
+│   │
+│   ├── SHA-1
+│   │   └── Deprecated hash with known weaknesses
+│   │
+│   └── SHA-256
+│       └── Secure hash used for fingerprints and verification
+│
+├── Message Authentication (Integrity + Authenticity)
+│   │
+│   ├── HMAC
+│   │   └── Hash combined with a secret key to authenticate messages
+│   │
+│   └── Poly1305
+│       └── High-speed authenticator used with stream ciphers
+│
+└── AEAD (Encryption + Authentication)
+    │
+    ├── AES-GCM
+    │   └── AES encryption with built-in authentication
+    │
+    └── ChaCha20-Poly1305
+        └── Stream cipher with integrated authentication
