@@ -1,3 +1,5 @@
+![Alt text](images/SSH_logo.png)
+
 # SSH Security Assessment Tool
 
 A comprehensive SSH server security scanner that detects weak cryptographic algorithms and tests for downgrade attack vulnerabilities.
