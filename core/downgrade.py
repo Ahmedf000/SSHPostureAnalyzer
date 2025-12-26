@@ -1,4 +1,6 @@
 import subprocess
+from core.colors import Colors, red, green, yellow, blue, cyan, bold
+import sys
 
 
 def downgrade_ssh(user, ip, port=22, kex=None, hostkey=None, pubkey=None, cipher=None, mac=None):
@@ -51,22 +53,19 @@ def downgrade_ssh(user, ip, port=22, kex=None, hostkey=None, pubkey=None, cipher
             }
         }
 
-
-
-
-
+        # Update downgrade.py success messages
         if "no matching" in result.stderr.lower():
             response["success"] = False
             response["reason"] = "Server rejected weak algorithms (SECURE)"
-            print("Server does NOT accept these weak algorithms - SECURE")
+            print(green("[+] Server does NOT accept these weak algorithms - SECURE"))
         elif result.returncode == 0:
             response["success"] = True
             response["reason"] = "Connection succeeded with weak algorithms (VULNERABLE)"
-            print("WARNING: Server accepted weak algorithms - VULNERABLE!")
+            print(red("[!] WARNING: Server accepted weak algorithms - VULNERABLE!"))
         elif "permission denied" in result.stderr.lower():
             response["success"] = True
             response["reason"] = "Algorithms accepted but authentication failed (VULNERABLE)"
-            print("WARNING: Server accepted weak algorithms (auth failed but algorithms work) - VULNERABLE!")
+            print(yellow("[!] WARNING: Server accepted weak algorithms (auth failed) - VULNERABLE!"))
         else:
             response["success"] = False
             response["reason"] = f"Connection failed: {result.stderr[:100]}"
@@ -121,15 +120,13 @@ def attempt_downgrade_attacks(ip, user, enumeration_data):
         print("No weak algorithms found - server appears secure")
         return results
 
-
-
-    print(f"Found vulnerable algorithms:")
+    print(f"{cyan('[*]')} Found vulnerable algorithms:")
     if vulnerable_kex:
-        print(f"    KEX: {', '.join(vulnerable_kex)}")
+        print(f"    KEX: {yellow(', '.join(vulnerable_kex))}")
     if vulnerable_ciphers:
-        print(f"    Ciphers: {', '.join(vulnerable_ciphers)}")
+        print(f"    Ciphers: {yellow(', '.join(vulnerable_ciphers))}")
     if vulnerable_macs:
-        print(f"    MACs: {', '.join(vulnerable_macs)}")
+        print(f"    MACs: {yellow(', '.join(vulnerable_macs))}")
 
 
 

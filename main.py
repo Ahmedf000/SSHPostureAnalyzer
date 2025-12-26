@@ -1,41 +1,18 @@
 import argparse
 import json
 import os
+import sys
 from datetime import datetime
 from core.banner import grab_banner
 from core.enumerate import enumerate_ssh
+from core.colors import Colors, red, green, yellow, blue, cyan, bold
 from core.downgrade import downgrade_ssh, attempt_downgrade_attacks
 
 
 def main():
     print("""
                                                                                                                                                                                                                                                                                                                      
-           ,%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@S:           
-         ,@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@:         
-        ,@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@;        
-        ?@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@S%%%S#@@@@@@@@@@@@@@@@@#%%%S#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%        
-        ?@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*.           .#@@@@@@@@*.            #@@@@@@@,   +@@@@@@@@@@@@@@:   +@@@@@@@@@%        
-        ?@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*    ,S###SS;. .#@@@@@@?    ,%###S%;.  #@@@@@@@,   +@@@@@@@@@@@@@@:   +@@@@@@@@@%        
-        ?@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*   ,@@@@@@@@@@@@@@@@@@?   ,@@@@@@@@@@@@@@@@@@@@,   +@@@@@@@@@@@@@@:   +@@@@@@@@@%        
-        ?@@@@@@@@;.?@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@:   *@@@@@@@@@@@@@@@@@@;   +@@@@@@@@@@@@@@@@@@@@,   +@@@@@@@@@@@@@@:   +@@@@@@@@@%        
-        ?@@@@@@@@;    ,*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+    ?@@@@@@@@@@@@@@@@@?    *@@@@@@@@@@@@@@@@@@@,   +@@@@@@@@@@@@@@:   +@@@@@@@@@%        
-        ?@@@@@@@@@@@+.    .*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@;     :#@@@@@@@@@@@@@@@;     :#@@@@@@@@@@@@@@@@,   +@@@@@@@@@@@@@@:   +@@@@@@@@@%        
-        ?@@@@@@@@@@@@@@@%.    .+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@,      ,?@@@@@@@@@@@@@@:      ,?@@@@@@@@@@@@@,   .::::::::::::::.   +@@@@@@@@@%        
-        ?@@@@@@@@@@@@@@@@@@@*,.   .+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%,       *@@@@@@@@@@@@@%,      .+@@@@@@@@@@,                      +@@@@@@@@@%        
-        ?@@@@@@@@@@@@@@@@@@@@@@@S.     :@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@;      .@@@@@@@@@@@@@@@;      .#@@@@@@@,   +@@@@@@@@@@@@@@:   +@@@@@@@@@%        
-        ?@@@@@@@@@@@@@@@@@@@@@@@@+.    .?@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+.    %@@@@@@@@@@@@@@@@+     ?@@@@@@,   +@@@@@@@@@@@@@@:   +@@@@@@@@@%        
-        ?@@@@@@@@@@@@@@@@@@@#+.    ,*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.   ,@@@@@@@@@@@@@@@@@@.   ,@@@@@@,   +@@@@@@@@@@@@@@:   +@@@@@@@@@%        
-        ?@@@@@@@@@@@@@@@@:.    ,%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*   .@@@@@@@@@@@@@@@@@@*   .@@@@@@,   +@@@@@@@@@@@@@@:   +@@@@@@@@@%        
-        ?@@@@@@@@@@@S;.    :?@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.   *@@@@@@@@@@@@@@@@@@.   +@@@@@@,   +@@@@@@@@@@@@@@:   +@@@@@@@@@%        
-        ?@@@@@@@@+    .,S@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@,  ,?@@@@@@#,    +@@@@@,  ,?@@@@@@@,    +@@@@@@@,   +@@@@@@@@@@@@@@:   +@@@@@@@@@%        
-        ?@@@@@@@@; :S@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@,             .*@@@@@@@,             .*@@@@@@@@@,   +@@@@@@@@@@@@@@:   +@@@@@@@@@%        
-        ?@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@S?*++*?S@@@@@@@@@@@@@@@S?*++*?S@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%        
-        ?@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%        
-        ?@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@S                    .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%        
-        :@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@S....................,@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@;        
-         :@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@;         
-           :S@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#;           
-                                                            SSH Security Assessment Tool v1.0.0                                                                                                                                
+     SSH Security Assessment Tool v1.0.0                                                                                                                                
     """)
 
     parser = argparse.ArgumentParser(description="SSH Security Assessment & Downgrade Testing Tool")
@@ -71,16 +48,16 @@ def main():
 
 
     if args.sock:
-        print(f"Grabbing SSH banner from {args.ip}:{args.port}")
+        print(f"\n{cyan('[*]')} Grabbing SSH banner from {args.ip}:{args.port}")
         try:
             banner = grab_banner(args.ip, port=args.port, timeout=5)
 
 
             if not banner:
-                print("Failed to obtain SSH banner")
+                print(red("[!] Failed to obtain SSH banner"))
                 result["banner_check"] = {"status": "failed", "error": "No banner received"}
             else:
-                print(f"Banner received: {banner}")
+                print(green(f"[+] Banner received: {banner}"))
 
 
                 if not banner.startswith("SSH-"):
@@ -95,15 +72,15 @@ def main():
                         risk_level = "UNKNOWN"
 
                         if proto_version == "1.99":
-                            print("SSH-1.99 detected - HIGH RISK (supports SSH-1 and SSH-2)")
+                            print(yellow("[!] SSH-1.99 detected - HIGH RISK"))
                             downgrade_possible = True
                             risk_level = "HIGH"
                         elif proto_version.startswith("1."):
-                            print("SSH-1.x detected - CRITICAL RISK (fundamentally insecure)")
+                            print(red("[!] SSH-1.x detected - CRITICAL RISK"))
                             downgrade_possible = True
                             risk_level = "CRITICAL"
                         elif proto_version == "2.0":
-                            print("SSH-2.0 detected (modern, but check algorithms)")
+                            print(green("[+] SSH-2.0 detected (modern)"))
                             risk_level = "LOW"
 
 
@@ -125,7 +102,7 @@ def main():
 
 
     if args.enum:
-        print(f"Starting SSH enumeration on {args.ip}:{args.port}")
+        print(f"\n{cyan('[*]')} Starting SSH enumeration on {args.ip}:{args.port}")
 
         try:
             enumeration_data = enumerate_ssh(args.ip, port=args.port, timeout=10)
@@ -136,9 +113,22 @@ def main():
             print("=" * 60)
 
             if enumeration_data["connection_info"]["status"] == "success":
-                print(f"Connection successful ({enumeration_data['connection_info']['connection_time_ms']}ms)")
+                print(green(f"[+] Connection successful ({enumeration_data['connection_info']['connection_time_ms']}ms)"))
                 print(f"Banner: {enumeration_data['banner']['raw']}")
                 print(f"Server Software: {enumeration_data['banner']['software']}")
+
+                risk = enumeration_data['security_assessment']['overall_risk']
+                if risk == "CRITICAL":
+                    risk_colored = red(bold(risk))
+                elif risk == "HIGH":
+                    risk_colored = red(risk)
+                elif risk == "MEDIUM":
+                    risk_colored = yellow(risk)
+                else:
+                    risk_colored = green(risk)
+
+                print(f"\n{cyan('[*]')} Security Assessment:")
+                print(f"    Overall Risk: {risk_colored}")
 
 
                 print(f"Key Exchange Algorithms: {len(enumeration_data['key_exchange']['server_offered'])} offered")
@@ -184,10 +174,8 @@ def main():
 
 
     if args.downgrade:
-        if "enumeration" not in result or result["enumeration"].get("connection_info", {}).get("status") != "success":
-            print("Cannot perform downgrade attacks without successful enumeration")
-            print("Run with -e flag first or use --auto for combined scan")
-        else:
+        if "enumeration" in result and result["enumeration"].get("connection_info", {}).get("status") == "success":
+            print("\n[*] Using enumeration data for targeted attacks")
             try:
                 downgrade_results = attempt_downgrade_attacks(
                     ip=args.ip,
@@ -195,9 +183,30 @@ def main():
                     enumeration_data=result["enumeration"]
                 )
                 result["downgrade_attacks"] = downgrade_results
+            except Exception as e:
+                print(f"[!] Downgrade attack error: {e}")
+                result["downgrade_attacks"] = {"error": str(e)}
+
+        else:
+            print("\n[*] No enumeration data found - running enumeration first...")
+            try:
+                enumeration_data = enumerate_ssh(args.ip, port=args.port, timeout=10)
+                result["enumeration"] = enumeration_data
+
+                if enumeration_data["connection_info"]["status"] == "success":
+                    print("[+] Enumeration complete, starting downgrade attacks...")
+                    downgrade_results = attempt_downgrade_attacks(
+                        ip=args.ip,
+                        user=args.user,
+                        enumeration_data=enumeration_data
+                    )
+                    result["downgrade_attacks"] = downgrade_results
+                else:
+                    print(f"[!] Enumeration failed: {enumeration_data['connection_info']['error']}")
+                    result["downgrade_attacks"] = {"error": "Enumeration failed"}
 
             except Exception as e:
-                print(f"Downgrade attack error: {e}")
+                print(f"[!] Error during auto-enumeration: {e}")
                 result["downgrade_attacks"] = {"error": str(e)}
 
 
@@ -217,6 +226,35 @@ def main():
         print("FULL RESULTS (JSON)")
         print("=" * 60)
         print(json.dumps(result, indent=2))
+
+    if "downgrade_attacks" in result:
+        attacks = result["downgrade_attacks"]
+        print(f"\n{bold('=' * 60)}")
+        print(f"{bold('FINAL ASSESSMENT')}")
+        print(f"{bold('=' * 60)}")
+
+        if "enumeration" in result:
+            weak_count = result["enumeration"]["security_assessment"]["weak_algorithms_count"]
+            risk = result["enumeration"]["security_assessment"]["overall_risk"]
+
+            if risk == "CRITICAL":
+                print(f"Risk Level: {red(bold(risk))} ({weak_count} weak algorithms found)")
+            elif risk == "HIGH":
+                print(f"Risk Level: {red(risk)} ({weak_count} weak algorithms found)")
+            elif risk == "MEDIUM":
+                print(f"Risk Level: {yellow(risk)} ({weak_count} weak algorithms found)")
+            else:
+                print(f"Risk Level: {green(risk)} ({weak_count} weak algorithms found)")
+
+        if attacks.get("successful_attacks", 0) > 0:
+            print(
+                f"\n{red(bold('⚠ VULNERABLE:'))} {attacks['successful_attacks']}/{attacks['attacks_attempted']} downgrade attacks succeeded")
+            print(f"{red('Action Required:')} Disable weak algorithms immediately")
+        else:
+            print(f"\n{green(bold('✓ SECURE:'))} {attacks['attacks_attempted']} downgrade attacks failed")
+            print(f"{green('Status:')} Server properly rejects weak algorithms")
+
+    print(f"\n{cyan('[*]')} Scan complete")
 
     print("Scan complete")
 
