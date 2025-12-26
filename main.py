@@ -8,11 +8,12 @@ import os
 def main():
     print("""
             __        ____ ____  _   _ 
-            \ \      / ___/ ___|| | | |
-             \ \     \___ \___ \| |_| |
+            \\ \\      / ___/ ___|| | | |
+             \\ \\    \\___ \\___ \\| |_| |
              / /      ___) |__) |  _  |     
             /_/____  |____/____/|_| |_|
-             |_____|                  
+             |_____| 
+                              
     """)
     
     parser = argparse.ArgumentParser(description="SSH Downgrade, enumeration Testing Tool")
@@ -93,6 +94,7 @@ def main():
         enumeration_phase = enumerate_ssh(args.ip, port=22, timeout=10)
         try:
             print("The enumeration phase and all target information saved as follows")
+
             import json
             from datetime import datetime
 
@@ -173,6 +175,9 @@ def main():
         except Exception as e:
             print(f"ERROR: {e}")
 
+
+
+
     if args.downgrade:
         if downgrade_possible:
             print("Starting SSH protocol downgrade...")
@@ -183,9 +188,8 @@ def main():
         print("Downgrade flag not set — analysis only")
 
 
-    if args.enum:
-        print("Enumerating SSH...")
-        result["enumeration"] = enumerate_ssh(args.ip)
+
+
 
 
     if args.output:

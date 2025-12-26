@@ -113,11 +113,14 @@ def enumerate_ssh(ip, port=22, timeout=10):
                 if len(software_and_comments) > 1:
                     ssh_info["banner"]["comments"] = software_and_comments[1]
 
+
+
         security = transport.get_security_options()
         ssh_info["key_exchange"]["server_offered"] = list(security.kex)
         ssh_info["encryption"]["server_offered"] = list(security.ciphers)
         ssh_info["mac"]["server_offered"] = list(security.digests)
         ssh_info["compression"]["server_offered"] = list(security.compression)
+
 
         try:
             if hasattr(transport, 'kex_engine') and transport.kex_engine:
