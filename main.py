@@ -23,6 +23,10 @@ def main():
     parser.add_argument("-u", "--user", default="root")
     parser.add_argument("-e","--enum", action="store_true")
     parser.add_argument("-d","--downgrade", action="store_true")
+    parser.add_argument("-l","--low_downgrade", default=False, action="store_true", required=True)
+    parser.add_argument("-m", "--medium-downgrade", default=False, action="store_true",required=True)
+    parser.add_argument("-x", "--high_downgrade", default=False, action="store_true", required=True)
+    parser.add_argument("-c", "--critical", default=False, action="store_true", required=True)
     parser.add_argument("-o", "--output")
 
     args = parser.parse_args()
@@ -180,6 +184,54 @@ def main():
 
     if args.downgrade:
         if downgrade_possible:
+            if args.low_downgrade:
+                print("Starting SSH protocol downgrade with low severity...")
+                print(f"Sending out command: ssh {args.user}@{args.ip} -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedAlgorithms=+ssh-rsa")
+                low_downgrade = downgrade_ssh(args.user, args.ip, port=22,kex="-oHostKeyAlgorithms=+ssh-rsa", pubkey="-oPubkeyAcceptedAlgorithms=+ssh-rsa")
+                print("Returned CMD results as below: ")
+                exit(1)
+            else:
+                print("Couldn't perform any low level downgrading")
+
+
+            if args.medium_downgrade:
+                print("Starting SSH protocol downgrade with low severity...")
+                print(f"Sending out command: ssh {args.user}@{args.ip} -oKexAlgorithms=+diffie-hellman-group14-sha1 -oCiphers=aes128-ctr -oMACs=hmac-sha1")
+                low_downgrade = downgrade_ssh(args.user, args.ip, port=22, kex="oKexAlgorithms=+diffie-hellman-group14-sha1",
+                                              pubkey="")
+                print("Returned CMD results as below: ")
+                exit(1)
+            else:
+                print("Couldn't perform any medium level downgrading")
+
+
+            if args.high_downgrade:
+                print("Starting SSH protocol downgrade with low severity...")
+                print(f"Sending out command: ssh {args.user}@{args.ip} -oKexAlgorithms=+diffie-hellman-group1-sha1 -oHostKeyAlgorithms=+ssh-rsa -oCiphers=aes128-cbc -oMACs=hmac-sha1 -oCompression=no")
+                low_downgrade = downgrade_ssh(args.user, args.ip, port=22, kex="-oKexAlgorithms=+diffie-hellman-group1-sha1", hostkey="-oHostKeyAlgorithms=+ssh-rsa",
+
+                                              pubkey="-oPubkeyAcceptedAlgorithms=+ssh-rsa")
+                print("Returned CMD results as below: ")
+                exit(1)
+            else:
+                print("Couldn't perform any high level downgrading")
+
+            if args.high_downgrade:
+                print("Starting SSH protocol downgrade with low severity...")
+                print(f"Sending out command: ssh {args.user}@{args.ip} -oKexAlgorithms =+diffie-hellman-group1-sha1 - oCiphers=3des-cbc -oMACs=hmac-md5 -oHostKeyAlgorithms =+ssh-dss -oCompression=no")
+                low_downgrade = downgrade_ssh(args.user, args.ip, port=22,
+                                              kex="-oKexAlgorithms =+diffie-hellman-group1-sha1",
+                                              hostkey="-oHostKeyAlgorithms=+ssh-rsa",
+
+                                              pubkey="-oPubkeyAcceptedAlgorithms=+ssh-rsa")
+                print("Returned CMD results as below: ")
+                exit(1)
+            else:
+                print("Couldn't perform any medium level downgrading")
+
+
+
+
             print("Starting SSH protocol downgrade...")
         else:
             print("Downgrade not possible on this target.")
