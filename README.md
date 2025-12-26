@@ -10,6 +10,10 @@ A comprehensive SSH server security scanner that detects weak cryptographic algo
 - **Intelligent Downgrade Testing**: Attempts targeted attacks based on discovered weaknesses
 - **Detailed Reporting**: JSON output with actionable recommendations
 
+
+![Alt text](images/SSH_chart.jpg)
+
+
 ## Installation
 ```bash
 git clone 
