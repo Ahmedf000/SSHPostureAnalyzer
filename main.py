@@ -261,7 +261,7 @@ def main():
 
         if attacks.get("successful_attacks", 0) > 0:
             print(
-                f"\n{red(bold('⚠ VULNERABLE:'))} {attacks['successful_attacks']}/{attacks['attacks_attempted']} downgrade attacks succeeded")
+                f"\n{red(bold('VULNERABLE:'))} {attacks['successful_attacks']}/{attacks['attacks_attempted']} downgrade attacks succeeded")
             print(f"{red('Action Required:')} Disable weak algorithms immediately")
         else:
             print(f"\n{green(bold('✓ SECURE:'))} {attacks['attacks_attempted']} downgrade attacks failed")
