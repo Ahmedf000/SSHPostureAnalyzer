@@ -3,7 +3,7 @@
     "weak_kex": [
         "diffie-hellman-group1-sha1",
         "diffie-hellman-group14-sha1",
-        "'diffie-hellman-group-exchange-sha1",
+        "diffie-hellman-group-exchange-sha1",
         "rsa1024-sha1"
     ],
     "weak_ciphers": [

@@ -1,1 +1,16 @@
 .idea/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+reports/
+*.json
+!config/settings.json

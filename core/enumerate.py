@@ -493,7 +493,7 @@ def classify_algorithm(algorithm_name, category):
         elif algorithm_name.startswith('rsa-sha2-'):
             classification["status"] = "secure"
             classification["risk_level"] = "low"
-            classification[("reason")] = "RSA with SHA-2 signatures"
+            classification["reason"] = "RSA with SHA-2 signatures"
 
 
     return classification
