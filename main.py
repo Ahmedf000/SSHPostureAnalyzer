@@ -2,8 +2,8 @@ import argparse
 import json
 from core.downgrade import downgrade_ssh
 from core.banner import grab_banner
-from core.enumerate import enumerate_ssh
-import re
+from core.enumerate import *
+import os
 
 def main():
     print("""
@@ -15,7 +15,7 @@ def main():
              |_____|                  
     """)
     
-    parser = argparse.ArgumentParser(description="SSH Downgrade Testing Tool")
+    parser = argparse.ArgumentParser(description="SSH Downgrade, enumeration Testing Tool")
     parser.add_argument("-i", "--ip", required=True)
     parser.add_argument("-s", "--sock", action="store_true",
                     help="Grab SSH banner using raw socket")
@@ -29,6 +29,7 @@ def main():
     result = {}
 
     downgrade_possible = False
+
     if args.sock:
         print(f"Starting connection with {args.ip} ")
         try:
@@ -87,6 +88,91 @@ def main():
             print(f"ERROR: {e}")
 
 
+    if args.enum:
+        print(f"Initializing enumeration phase with: {args.ip} ")
+        enumeration_phase = enumerate_ssh(args.ip, port=22, timeout=10)
+        try:
+            print("The enumeration phase and all target information saved as follows")
+            import json
+            from datetime import datetime
+
+            report = {
+                "enumeration_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "Target_IP": args.ip,
+                "All_findings_from_remote_target": {
+                        "banner": {
+                            "raw": None,
+                            "protocol_version": None,
+                            "software": None,
+                            "comments": None
+                        },
+
+                        "key_exchange": {
+                            "server_offered": [],
+                            "client_offered": [],
+                            "negotiated": None,
+                            "vulnerable_algorithms": [],
+                            "detailed_analysis": []
+                        },
+
+                        "encryption": {
+                            "server_offered": [],
+                            "client_offered": [],
+                            "client_to_server": None,
+                            "server_to_client": None,
+                            "vulnerable_algorithms": [],
+                            "detailed_analysis": []
+                        },
+
+                        "mac": {
+                            "server_offered": [],
+                            "client_offered": [],
+                            "client_to_server": None,
+                            "server_to_client": None,
+                            "vulnerable_algorithms": [],
+                            "detailed_analysis": [],
+                            "note": None
+                        },
+
+                        "host_key": {
+                            "algorithm": None,
+                            "key_type": None,
+                            "bits": None,
+                            "fingerprint_md5": None,
+                            "fingerprint_sha256": None,
+                            "detailed_analysis": None
+                        },
+
+                        "compression": {
+                            "server_offered": [],
+                            "client_offered": [],
+                            "client_to_server": None,
+                            "server_to_client": None
+                        },
+
+                        "security_assessment": {
+                            "overall_risk": None,
+                            "downgrade_possible": False,
+                            "weak_algorithms_count": 0,
+                            "recommendations": []
+                        },
+
+                        "connection_info": {
+                            "status": None,
+                            "error": None,
+                            "connection_time_ms": None
+                            }
+                        }
+                }
+
+            os.makedirs("reports", exist_ok=True)
+            report_path = os.path.join("reports", "enumeration_phase.json")
+            with open(report_path, "w", encoding="utf_8") as enum_json_file:
+                json.dump(report, enum_json_file, indent=3)
+            print(f"All enumeration findings saved to {report_path}")
+        except Exception as e:
+            print(f"ERROR: {e}")
+
     if args.downgrade:
         if downgrade_possible:
             print("Starting SSH protocol downgrade...")
@@ -106,9 +192,9 @@ def main():
         try:
             with open(args.output, "w") as f:
                 json.dump(result, f, indent=2)
-            print(f"[*] Results saved to {args.output}")
+            print(f"Results saved to {args.output}")
         except Exception as e:
-            print(f"[!] Failed to save results: {e}")
+            print(f"Failed to save results: {e}")
     else:
         print(json.dumps(result, indent=2))
 

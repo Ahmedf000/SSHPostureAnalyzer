@@ -1,0 +1,38 @@
+{
+  "weak_algorithms": {
+    "weak_kex": [
+        "diffie-hellman-group1-sha1",
+        "diffie-hellman-group14-sha1",
+        "'diffie-hellman-group-exchange-sha1",
+        "rsa1024-sha1"
+    ],
+    "weak_ciphers": [
+        "3des-cbc",
+        "aes128-cbc",
+        "aes192-cbc",
+        "aes256-cbc",
+        "arcfour",
+        "arcfour128",
+        "arcfour256",
+        "blowfish-cbc",
+        "cast128-cbc",
+        "idea-cbc"
+    ],
+    "weak_macs": [
+        "hmac-md5",
+        "hmac-md5-96",
+        "hmac-sha1-96",
+        "hmac-ripemd160",
+        "hmac-sha1"
+    ],
+    "weak_host_keys": [
+        "ssh-dss",
+        "ssh-rsa"
+   ]
+  },
+  "reporting": {
+    "output_format": "json",
+    "output_directory": "reports",
+    "timestamp_format": "%Y-%m-%d %H:%M:%S"
+  }
+}

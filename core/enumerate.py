@@ -73,6 +73,8 @@ def enumerate_ssh(ip, port=22, timeout=10):
         }
     }
 
+
+
     transport = None
     start_time = None
     try:
@@ -167,10 +169,11 @@ def enumerate_ssh(ip, port=22, timeout=10):
             print(f"Warning: Could not extract host key info: {e}")
 
         ssh_info = assess_security(ssh_info)
-        AEAD_CIPHERS = ['chacha20-poly1305@openssh.com', 'aes128-gcm@openssh.com', 'aes256-gcm@openssh.com']
-        if (ssh_info["encryption"]["client_to_server"] in AEAD_CIPHERS or
-                ssh_info["encryption"]["server_to_client"] in AEAD_CIPHERS):
+        aed_ciphers = ['chacha20-poly1305@openssh.com', 'aes128-gcm@openssh.com', 'aes256-gcm@openssh.com']
+        if (ssh_info["encryption"]["client_to_server"] in aed_ciphers or
+                ssh_info["encryption"]["server_to_client"] in aed_ciphers):
             ssh_info["mac"]["note"] = "AEAD cipher in use - MAC is integrated"
+
 
 
 
@@ -196,7 +199,11 @@ def enumerate_ssh(ip, port=22, timeout=10):
         if transport:
             transport.close()
             print("Connection closed")
+
     return ssh_info
+
+
+
 
 
 def assess_security(ssh_info):
@@ -230,6 +237,8 @@ def assess_security(ssh_info):
         'ssh-rsa',
     ]
 
+
+
     for kex_algo in ssh_info["key_exchange"]["server_offered"]:
         classification = classify_algorithm(kex_algo, "kex")
         ssh_info["key_exchange"]["detailed_analysis"].append(classification)
@@ -248,6 +257,9 @@ def assess_security(ssh_info):
             "host_key"
         )
 
+
+
+
     vulnerable_kex = [
         algo["name"]
         for algo in ssh_info["key_exchange"]["detailed_analysis"]
@@ -264,14 +276,23 @@ def assess_security(ssh_info):
         if algo["status"] in ["vulnerable", "weak"]
     ]
 
+
+
+
+
     ssh_info["key_exchange"]["vulnerable_algorithms"] = vulnerable_kex
     ssh_info["encryption"]["vulnerable_algorithms"] = vulnerable_ciphers
     ssh_info["mac"]["vulnerable_algorithms"] = vulnerable_macs
+
+
+
 
     weak_count = len(vulnerable_kex) + len(vulnerable_ciphers) + len(vulnerable_macs)
     ssh_info["security_assessment"]["weak_algorithms_count"] = weak_count
     if weak_count > 0:
         ssh_info["security_assessment"]["downgrade_possible"] = True
+
+
 
     protocol_version = ssh_info["banner"]["protocol_version"]
     if protocol_version == "1.99":
@@ -285,12 +306,18 @@ def assess_security(ssh_info):
             "SSH-1 protocol detected - fundamentally insecure, upgrade to SSH-2 immediately"
         )
 
+
+
+
     if ssh_info["host_key"].get("detailed_analysis"):
         host_analysis = ssh_info["host_key"]["detailed_analysis"]
         if host_analysis["status"] in ["vulnerable", "weak"]:
             ssh_info["security_assessment"]["recommendations"].append(
                 f"Weak host key: {host_analysis['recommendation']}"
             )
+
+
+
 
     if vulnerable_kex:
         ssh_info["security_assessment"]["recommendations"].append(
@@ -305,6 +332,10 @@ def assess_security(ssh_info):
             f"Disable weak MACs: {', '.join(vulnerable_macs)}"
         )
 
+
+
+
+
     if weak_count == 0 and protocol_version == "2.0":
         ssh_info["security_assessment"]["overall_risk"] = "LOW"
     elif weak_count <= 3:
@@ -313,6 +344,10 @@ def assess_security(ssh_info):
         ssh_info["security_assessment"]["overall_risk"] = "HIGH"
     else:
         ssh_info["security_assessment"]["overall_risk"] = "CRITICAL"
+
+
+
+
 
     return ssh_info
 
@@ -327,6 +362,10 @@ def classify_algorithm(algorithm_name, category):
         "cve_references": [],
         "recommendation": ""
     }
+
+
+
+
 
     if category == "kex":
         if algorithm_name in ['diffie-hellman-group1-sha1']:
@@ -451,6 +490,7 @@ def classify_algorithm(algorithm_name, category):
         elif algorithm_name.startswith('rsa-sha2-'):
             classification["status"] = "secure"
             classification["risk_level"] = "low"
-            classification["reason"] = "RSA with SHA-2 signatures"
+            classification[("reason")] = "RSA with SHA-2 signatures"
+
 
     return classification
