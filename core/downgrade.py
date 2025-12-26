@@ -1,48 +1,205 @@
 import subprocess
 
-def downgrade_ssh(user, IP_ADDRESS, port=22,kex, hostkey, pubkey, cipher):
 
+def downgrade_ssh(user, ip, port=22, kex=None, hostkey=None, pubkey=None, cipher=None, mac=None):
+    command = ["ssh", "-p", str(port), f"{user}@{ip}"]
 
-    COMMAND = [
-        "ssh",
-        "-p", str(port),
-        f"{user}@{IP_ADDRESS}",
-        f"_oKexAlgorithms=+{kex}",
-        f"-oHostkeyAlgorithms=+{hostkey}",
-        f"-oPubKeyAcceptedAlgorithms=+{pubkey}",
-        "-c", cipher,
+    if kex:
+        command.extend(["-oKexAlgorithms=+" + kex])
+    if hostkey:
+        command.extend(["-oHostKeyAlgorithms=+" + hostkey])
+    if pubkey:
+        command.extend(["-oPubkeyAcceptedAlgorithms=+" + pubkey])
+    if cipher:
+        command.extend(["-oCiphers=" + cipher])
+    if mac:
+        command.extend(["-oMACs=" + mac])
+
+    command.extend([
         "-oBatchMode=yes",
-    ]
+        "-oConnectTimeout=5",
+        "-oStrictHostKeyChecking=no",
+        "-oUserKnownHostsFile=/dev/null",
+        "exit"
+    ])
+
+
+
 
     try:
-        print("Initiating downgrade process.....")
-        print("Running:", " ".join(COMMAND))
+        print(f"Testing downgrade attack...")
+        print(f"Command: {' '.join(command)}")
 
-        cmd_turn = subprocess.run(COMMAND, shell=True, capture_output=True, timeout=10)
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            timeout=10,
+            text=True
+        )
 
-        target_cmd_response= {
-            "returncode": cmd_turn.returncode,
-            "stdout": cmd_turn.stdout.strip(),
-            "stderr": cmd_turn.stderr.strip()
+        response = {
+            "success": False,
+            "returncode": result.returncode,
+            "stdout": result.stdout.strip(),
+            "stderr": result.stderr.strip(),
+            "attempted_algorithms": {
+                "kex": kex,
+                "hostkey": hostkey,
+                "pubkey": pubkey,
+                "cipher": cipher,
+                "mac": mac
+            }
         }
 
-        for response in target_cmd_response.items():
-            print(f"The return code is {response['returncode']}")
-            if response == "stdout":
-                print(f"The target stdout CMD response: {response}")
-                exit(1)
-            elif response == "stderr":
-                print(f"The target stderr CMD response: {response}")
-            else:
-                print("Unknown response")
 
 
-    except subprocess.TimeoutExpired as e:
-        print(f"Timeout ran out: {str(e)}")
-        exit(1)
-    except subprocess.CalledProcessError as e:
-        print(f"Error running command: {str(e)}")
-        exit(1)
+
+
+        if "no matching" in result.stderr.lower():
+            response["success"] = False
+            response["reason"] = "Server rejected weak algorithms (SECURE)"
+            print("Server does NOT accept these weak algorithms - SECURE")
+        elif result.returncode == 0:
+            response["success"] = True
+            response["reason"] = "Connection succeeded with weak algorithms (VULNERABLE)"
+            print("WARNING: Server accepted weak algorithms - VULNERABLE!")
+        elif "permission denied" in result.stderr.lower():
+            response["success"] = True
+            response["reason"] = "Algorithms accepted but authentication failed (VULNERABLE)"
+            print("WARNING: Server accepted weak algorithms (auth failed but algorithms work) - VULNERABLE!")
+        else:
+            response["success"] = False
+            response["reason"] = f"Connection failed: {result.stderr[:100]}"
+            print(f"Connection failed: {result.stderr[:100]}")
+
+        return response
+
+
+
+
+    except subprocess.TimeoutExpired:
+        print("[!] Connection timeout")
+        return {
+            "success": False,
+            "returncode": -1,
+            "reason": "Connection timeout",
+            "attempted_algorithms": {"kex": kex, "hostkey": hostkey, "cipher": cipher, "mac": mac}
+        }
     except Exception as e:
-        print(f"Error Occured: {str(e)}")
+        print(f"[!] Error: {str(e)}")
+        return {
+            "success": False,
+            "returncode": -1,
+            "reason": str(e),
+            "attempted_algorithms": {"kex": kex, "hostkey": hostkey, "cipher": cipher, "mac": mac}
+        }
 
+
+
+
+
+def attempt_downgrade_attacks(ip, user, enumeration_data):
+
+    print("\n" + "=" * 60)
+    print("DOWNGRADE ATTACK PHASE")
+    print("=" * 60)
+
+    results = {
+        "attacks_attempted": 0,
+        "successful_attacks": 0,
+        "attack_details": []
+    }
+
+
+    vulnerable_kex = enumeration_data.get("key_exchange", {}).get("vulnerable_algorithms", [])
+    vulnerable_ciphers = enumeration_data.get("encryption", {}).get("vulnerable_algorithms", [])
+    vulnerable_macs = enumeration_data.get("mac", {}).get("vulnerable_algorithms", [])
+
+
+
+    if not (vulnerable_kex or vulnerable_ciphers or vulnerable_macs):
+        print("No weak algorithms found - server appears secure")
+        return results
+
+
+
+    print(f"Found vulnerable algorithms:")
+    if vulnerable_kex:
+        print(f"    KEX: {', '.join(vulnerable_kex)}")
+    if vulnerable_ciphers:
+        print(f"    Ciphers: {', '.join(vulnerable_ciphers)}")
+    if vulnerable_macs:
+        print(f"    MACs: {', '.join(vulnerable_macs)}")
+
+
+
+
+    attack_combinations = []
+
+    if vulnerable_kex and vulnerable_ciphers and vulnerable_macs:
+        print("Testing CRITICAL severity attack (KEX + Cipher + MAC)...")
+        attack = {
+            "severity": "CRITICAL",
+            "kex": vulnerable_kex[0] if vulnerable_kex else None,
+            "cipher": vulnerable_ciphers[0] if vulnerable_ciphers else None,
+            "mac": vulnerable_macs[0] if vulnerable_macs else None,
+            "hostkey": "ssh-rsa"
+        }
+        attack_combinations.append(attack)
+
+    elif vulnerable_kex and vulnerable_ciphers:
+        print("Testing HIGH severity attack (KEX + Cipher)...")
+        attack = {
+            "severity": "HIGH",
+            "kex": vulnerable_kex[0],
+            "cipher": vulnerable_ciphers[0],
+            "hostkey": "ssh-rsa"
+        }
+        attack_combinations.append(attack)
+
+    elif vulnerable_kex or vulnerable_ciphers:
+        print("Testing MEDIUM severity attack (KEX or Cipher)...")
+        attack = {
+            "severity": "MEDIUM",
+            "kex": vulnerable_kex[0] if vulnerable_kex else None,
+            "cipher": vulnerable_ciphers[0] if vulnerable_ciphers else None
+        }
+        attack_combinations.append(attack)
+
+    elif vulnerable_macs:
+        print("Testing LOW severity attack (MAC only)...")
+        attack = {
+            "severity": "LOW",
+            "mac": vulnerable_macs[0]
+        }
+        attack_combinations.append(attack)
+
+
+
+
+    for attack in attack_combinations:
+        results["attacks_attempted"] += 1
+
+        result = downgrade_ssh(
+            user=user,
+            ip=ip,
+            kex=attack.get("kex"),
+            hostkey=attack.get("hostkey"),
+            cipher=attack.get("cipher"),
+            mac=attack.get("mac")
+        )
+
+        result["severity"] = attack["severity"]
+        results["attack_details"].append(result)
+
+        if result["success"]:
+            results["successful_attacks"] += 1
+
+
+
+
+    print("\n" + "=" * 60)
+    print(f"ATTACK SUMMARY: {results['successful_attacks']}/{results['attacks_attempted']} attacks succeeded")
+    print("=" * 60)
+
+    return results
