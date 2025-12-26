@@ -11,8 +11,21 @@ from core.downgrade import downgrade_ssh, attempt_downgrade_attacks
 
 def main():
     print("""
-                                                                                                                                                                                                                                                                                                                     
-     SSH Security Assessment Tool v1.0.0                                                                                                                                
+                                                                                                                                    
+         ;%%%%%%%%%?.      :SSSSSSSS#S,    ?###;     S###,                              ?##:         ?S%,  ;%%;         
+       *%?%%?++*%SS+     +S%S#%*+*%##S     ####     .####                              ?S#,         ,S%*  .%%?          
+      *?%%,             +%%S:        .    ;###?     ?###;                             ?S#,          ?%%.  +%%:          
+      ???%,             %%%S;             SSS#,     #S##          /**####/            ?SS,       %%%%%%%%%%%%%%?%//     
+      +????%?;          +%%%%%S+.        .#SSS######S##?         /#S##%/             ?SS.       ////?%%,..+%%;////       
+       .+%%????%?.        ;%S%%%%%S,     *SSSSSSSSSSSS#,        /;####/             ?%S.           /S%+  .%??            
+            :?%??%:           ,?%%%S;    S%SS     .#SSS                           ?%S.            ?%%.  +%%:            
+              :??%+             ,%%%%   :S%S*     *%SS;                          ?%S.         %%%%%%%%%%?????%:         
+    ;.        ;??%:   ;,        :%%%+   ?%%S.     S%S#         +%%%%.           ?%S.             ?%%.  ;%%:             
+   .????+:::*%??%;    ??%?*;::*S%%%*   .S%%%     :S%%?         S%%S?           ?%%.             ,%%+  .%??              
+   ,+??????????;     .+?%%%%%%%%%+     +%%S;     ?%SS,        ,SSSS,          ?%%               ??%.  +%%:              
+                                                                             ?%%                                        
+                            
+                                    SECURITY ASSESSMENT TOOL V1.0.0                                                                               
     """)
 
     parser = argparse.ArgumentParser(description="SSH Security Assessment & Downgrade Testing Tool")

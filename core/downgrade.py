@@ -53,7 +53,7 @@ def downgrade_ssh(user, ip, port=22, kex=None, hostkey=None, pubkey=None, cipher
             }
         }
 
-        # Update downgrade.py success messages
+
         if "no matching" in result.stderr.lower():
             response["success"] = False
             response["reason"] = "Server rejected weak algorithms (SECURE)"
