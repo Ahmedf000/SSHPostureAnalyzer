@@ -164,14 +164,6 @@ def main():
                 print(f"    SHA256: {enumeration_data['host_key']['fingerprint_sha256']}")
 
 
-
-                print(f"Security Assessment:")
-                print(f"    Overall Risk: {enumeration_data['security_assessment']['overall_risk']}")
-                print(f"    Weak Algorithms: {enumeration_data['security_assessment']['weak_algorithms_count']}")
-                print(f"    Downgrade Possible: {enumeration_data['security_assessment']['downgrade_possible']}")
-
-
-
                 if enumeration_data['security_assessment']['recommendations']:
                     print(f"Recommendations:")
                     for rec in enumeration_data['security_assessment']['recommendations']:
@@ -269,7 +261,6 @@ def main():
 
     print(f"\n{cyan('[*]')} Scan complete")
 
-    print("Scan complete")
 
 
 if __name__ == "__main__":
